@@ -1,0 +1,143 @@
+.process-table-container {
+    background: var(--bg-card);
+    border-radius: 16px;
+    padding: 24px;
+    border: 1px solid var(--border-color);
+    box-shadow: var(--shadow-sm);
+    transition: all 0.3s ease;
+}
+
+.process-table-container:hover {
+    box-shadow: var(--shadow-md);
+    border-color: var(--accent-blue);
+}
+
+.table-title {
+    font-size: 18px;
+    font-weight: 600;
+    color: var(--text-primary);
+    margin-bottom: 20px;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+}
+
+.title-icon {
+    font-size: 24px;
+}
+
+.table-wrapper {
+    overflow-x: auto;
+    border-radius: 8px;
+}
+
+.process-table {
+    width: 100%;
+    border-collapse: collapse;
+}
+
+.process-table thead {
+    background: var(--bg-secondary);
+    border-radius: 8px;
+}
+
+.process-table th {
+    padding: 12px 16px;
+    text-align: left;
+    font-size: 12px;
+    font-weight: 600;
+    color: var(--text-secondary);
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    border-bottom: 2px solid var(--border-color);
+}
+
+.process-table tbody tr {
+    border-bottom: 1px solid var(--border-color);
+    transition: all 0.2s ease;
+}
+
+.process-table tbody tr:hover {
+    background: var(--bg-secondary);
+    transform: scale(1.01);
+}
+
+.process-table tbody tr:last-child {
+    border-bottom: none;
+}
+
+.process-table td {
+    padding: 14px 16px;
+    font-size: 14px;
+    color: var(--text-primary);
+}
+
+.process-name {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    font-weight: 500;
+}
+
+.process-icon {
+    font-size: 18px;
+}
+
+.process-pid {
+    color: var(--text-secondary);
+    font-family: 'Courier New', monospace;
+}
+
+.cpu-cell {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+}
+
+.cpu-value {
+    font-weight: 600;
+    color: var(--accent-blue);
+}
+
+.cpu-bar {
+    width: 100px;
+    height: 4px;
+    background: var(--bg-secondary);
+    border-radius: 2px;
+    overflow: hidden;
+}
+
+.cpu-bar-fill {
+    height: 100%;
+    background: var(--gradient-blue);
+    border-radius: 2px;
+    transition: width 0.3s ease;
+}
+
+.process-memory {
+    color: var(--accent-green);
+    font-weight: 500;
+}
+
+.no-data {
+    text-align: center;
+    color: var(--text-muted);
+    padding: 40px 16px !important;
+    font-style: italic;
+}
+
+/* Responsive */
+@media (max-width: 768px) {
+    .process-table {
+        font-size: 12px;
+    }
+
+    .process-table th,
+    .process-table td {
+        padding: 10px 12px;
+    }
+
+    .cpu-bar {
+        width: 60px;
+    }
+}

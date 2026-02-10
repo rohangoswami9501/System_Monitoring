@@ -4,7 +4,7 @@ from typing import List
 
 class Settings(BaseSettings):
     database_url: str = "postgresql://postgres:password@localhost:5432/system_monitor"
-    cors_origins: List[str] = ["http://localhost:3000", "http://localhost:5173"]
+    cors_origins: List[str] = ["http://localhost:3000", "http://localhost:5173", "http://127.0.0.1:3000", "http://127.0.0.1:5173"]
     
     model_config = SettingsConfigDict(env_file=".env", env_file_encoding='utf-8', extra='ignore')
 

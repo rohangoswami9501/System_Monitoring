@@ -1,9 +1,10 @@
-from fastapi import FastAPI, Depends
+from fastapi import FastAPI, Depends, WebSocket, WebSocketDisconnect
 from fastapi.middleware.cors import CORSMiddleware
 from sqlalchemy.orm import Session
 from datetime import datetime, timedelta
 from typing import List
 import uvicorn
+import asyncio
 
 from config import settings
 from database import get_db, init_db, SystemMetric, ProcessMetric
@@ -50,6 +51,7 @@ class HistoricalMetricsResponse(BaseModel):
 @app.on_event("startup")
 async def startup_event():
     """Initialize database on startup"""
+    print("Initializing database...")
     init_db()
     print("Database initialized successfully")
 
@@ -172,6 +174,85 @@ def cleanup_old_metrics(days: int = 7, db: Session = Depends(get_db)):
         "deleted_processes": deleted_processes,
         "cutoff_date": cutoff_time.isoformat()
     }
+
+
+
+
+@app.websocket("/ws/metrics")
+async def websocket_metrics(websocket: WebSocket):
+    """
+    WebSocket endpoint for real-time metrics streaming.
+    Pushes system metrics to connected clients every second.
+    """
+    await websocket.accept()
+    print(f"WebSocket client connected: {websocket.client}")
+    
+    db = None
+    try:
+        # Get database session manually to ensure we can close it
+        # Safely try to get a session
+        db_gen = get_db()
+        db = next(db_gen)
+        
+        while True:
+            try:
+                # Collect current metrics
+                metrics = collect_all_metrics()
+                
+                # Store in database (async, non-blocking)
+                system_metric = SystemMetric(
+                    cpu_percent=metrics['cpu']['percent'],
+                    ram_percent=metrics['ram']['percent'],
+                    ram_used_gb=metrics['ram']['used_gb'],
+                    ram_total_gb=metrics['ram']['total_gb'],
+                    disk_percent=metrics['disk']['percent'],
+                    disk_used_gb=metrics['disk']['used_gb'],
+                    disk_total_gb=metrics['disk']['total_gb']
+                )
+                db.add(system_metric)
+                
+                # Store top processes
+                for proc in metrics['top_processes']:
+                    process_metric = ProcessMetric(
+                        process_name=proc['name'],
+                        pid=proc['pid'],
+                        cpu_percent=proc['cpu_percent'],
+                        memory_mb=proc['memory_mb']
+                    )
+                    db.add(process_metric)
+                
+                db.commit()
+                
+                # Send metrics to client via WebSocket
+                await websocket.send_json(metrics)
+                
+                # Wait 1 second before next update
+                await asyncio.sleep(1)
+            
+            except WebSocketDisconnect:
+                print(f"WebSocket client disconnected (caught in loop): {websocket.client}")
+                break
+            except Exception as e:
+                error_msg = str(e).lower()
+                if "close" in error_msg or "closed" in error_msg:
+                    print(f"WebSocket connection closed: {e}")
+                    break
+                    
+                print(f"Error in metrics collection loop: {e}")
+                if db:
+                    db.rollback()
+                await asyncio.sleep(1)
+                
+    except WebSocketDisconnect:
+        print(f"WebSocket client disconnected: {websocket.client}")
+    except Exception as e:
+        print(f"WebSocket critical error: {e}")
+        import traceback
+        traceback.print_exc()
+    finally:
+        if db:
+            db.close()
+            print("Database session closed")
 
 
 if __name__ == "__main__":

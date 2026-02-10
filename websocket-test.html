@@ -1,0 +1,233 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>WebSocket Test</title>
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            max-width: 800px;
+            margin: 50px auto;
+            padding: 20px;
+            background: #1a1a2e;
+            color: #eee;
+        }
+
+        .container {
+            background: #16213e;
+            padding: 30px;
+            border-radius: 10px;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.3);
+        }
+
+        h1 {
+            color: #0f3460;
+            margin-top: 0;
+        }
+
+        .status {
+            padding: 10px 20px;
+            border-radius: 5px;
+            margin: 20px 0;
+            font-weight: bold;
+        }
+
+        .connected {
+            background: #10b981;
+            color: white;
+        }
+
+        .disconnected {
+            background: #ef4444;
+            color: white;
+        }
+
+        .metrics {
+            background: #0f3460;
+            padding: 20px;
+            border-radius: 8px;
+            margin-top: 20px;
+        }
+
+        .metric-item {
+            margin: 10px 0;
+            padding: 10px;
+            background: #1a1a2e;
+            border-radius: 5px;
+        }
+
+        button {
+            background: #3b82f6;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 5px;
+            cursor: pointer;
+            margin: 5px;
+            font-size: 14px;
+        }
+
+        button:hover {
+            background: #2563eb;
+        }
+
+        button:disabled {
+            background: #6b7280;
+            cursor: not-allowed;
+        }
+
+        #log {
+            background: #0a0a0a;
+            color: #00ff00;
+            padding: 15px;
+            border-radius: 5px;
+            max-height: 300px;
+            overflow-y: auto;
+            font-family: 'Courier New', monospace;
+            font-size: 12px;
+            margin-top: 20px;
+        }
+    </style>
+</head>
+
+<body>
+    <div class="container">
+        <h1>🔌 WebSocket Connection Test</h1>
+
+        <div id="status" class="status disconnected">
+            ⚠️ Disconnected
+        </div>
+
+        <div>
+            <button id="connectBtn" onclick="connect()">Connect</button>
+            <button id="disconnectBtn" onclick="disconnect()" disabled>Disconnect</button>
+            <button onclick="clearLog()">Clear Log</button>
+        </div>
+
+        <div class="metrics" id="metrics">
+            <h3>📊 Latest Metrics</h3>
+            <div id="metricsData">No data yet...</div>
+        </div>
+
+        <div>
+            <h3>📝 Connection Log</h3>
+            <div id="log"></div>
+        </div>
+    </div>
+
+    <script>
+        let ws = null;
+        let messageCount = 0;
+
+        function log(message, type = 'info') {
+            const logDiv = document.getElementById('log');
+            const timestamp = new Date().toLocaleTimeString();
+            const color = type === 'error' ? '#ff4444' : type === 'success' ? '#00ff00' : '#00aaff';
+            logDiv.innerHTML += `<div style="color: ${color}">[${timestamp}] ${message}</div>`;
+            logDiv.scrollTop = logDiv.scrollHeight;
+        }
+
+        function clearLog() {
+            document.getElementById('log').innerHTML = '';
+            messageCount = 0;
+        }
+
+        function updateStatus(connected) {
+            const statusDiv = document.getElementById('status');
+            const connectBtn = document.getElementById('connectBtn');
+            const disconnectBtn = document.getElementById('disconnectBtn');
+
+            if (connected) {
+                statusDiv.className = 'status connected';
+                statusDiv.innerHTML = '✅ Connected';
+                connectBtn.disabled = true;
+                disconnectBtn.disabled = false;
+            } else {
+                statusDiv.className = 'status disconnected';
+                statusDiv.innerHTML = '⚠️ Disconnected';
+                connectBtn.disabled = false;
+                disconnectBtn.disabled = true;
+            }
+        }
+
+        function displayMetrics(data) {
+            const metricsDiv = document.getElementById('metricsData');
+            metricsDiv.innerHTML = `
+                <div class="metric-item">
+                    <strong>🖥️ CPU:</strong> ${data.cpu.percent.toFixed(2)}%
+                </div>
+                <div class="metric-item">
+                    <strong>💾 RAM:</strong> ${data.ram.percent.toFixed(2)}% 
+                    (${data.ram.used_gb.toFixed(2)} GB / ${data.ram.total_gb.toFixed(2)} GB)
+                </div>
+                <div class="metric-item">
+                    <strong>💿 Disk:</strong> ${data.disk.percent.toFixed(2)}% 
+                    (${data.disk.used_gb.toFixed(2)} GB / ${data.disk.total_gb.toFixed(2)} GB)
+                </div>
+                <div class="metric-item">
+                    <strong>⚡ Top Processes:</strong> ${data.top_processes.length}
+                </div>
+                <div class="metric-item">
+                    <strong>📅 Timestamp:</strong> ${new Date(data.timestamp).toLocaleString()}
+                </div>
+                <div class="metric-item">
+                    <strong>📨 Messages Received:</strong> ${messageCount}
+                </div>
+            `;
+        }
+
+        function connect() {
+            if (ws && ws.readyState === WebSocket.OPEN) {
+                log('Already connected!', 'error');
+                return;
+            }
+
+            log('Connecting to ws://localhost:8000/ws/metrics...', 'info');
+            ws = new WebSocket('ws://localhost:8000/ws/metrics');
+
+            ws.onopen = () => {
+                log('✅ WebSocket connected successfully!', 'success');
+                updateStatus(true);
+            };
+
+            ws.onmessage = (event) => {
+                messageCount++;
+                const data = JSON.parse(event.data);
+
+                if (messageCount === 1) {
+                    log('📨 First message received!', 'success');
+                } else if (messageCount % 10 === 0) {
+                    log(`📨 Received ${messageCount} messages`, 'info');
+                }
+
+                displayMetrics(data);
+            };
+
+            ws.onerror = (error) => {
+                log('❌ WebSocket error occurred', 'error');
+                console.error('WebSocket error:', error);
+            };
+
+            ws.onclose = () => {
+                log('🔌 WebSocket connection closed', 'error');
+                updateStatus(false);
+            };
+        }
+
+        function disconnect() {
+            if (ws) {
+                ws.close();
+                log('Disconnecting...', 'info');
+            }
+        }
+
+        // Auto-connect on page load
+        window.onload = () => {
+            log('Page loaded. Click "Connect" to start.', 'info');
+        };
+    </script>
+</body>
+
+</html>
